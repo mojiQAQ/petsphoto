@@ -3,6 +3,7 @@
  */
 import axios from 'axios';
 import type { HistoryResponse } from '@/types/history';
+import { supabase } from '@/lib/supabase';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -14,12 +15,18 @@ const api = axios.create({
   },
 });
 
-// 请求拦截器：自动添加 Authorization header
+// 请求拦截器：自动添加 Authorization header（使用 Supabase session）
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('petsphoto_access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('获取 Supabase session 失败:', error);
     }
     return config;
   },

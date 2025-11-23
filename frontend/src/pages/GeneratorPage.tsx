@@ -2,6 +2,7 @@
  * 生成器页面
  */
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Container } from "@/components/layout/Container";
 import { ImageUploader } from "@/components/image-upload/ImageUploader";
 import { ImagePreview } from "@/components/image-upload/ImagePreview";
@@ -26,15 +27,21 @@ export function GeneratorPage() {
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [showResultDialog, setShowResultDialog] = useState(false);
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshUser } = useAuth();
+  const queryClient = useQueryClient();
 
   // 轮询生成任务状态
   const { job } = useGenerationPolling({
     jobId: currentJobId,
-    onCompleted: (job) => {
+    onCompleted: async (job) => {
       setCompletedJob(job);
       setShowResultDialog(true);
       setCurrentJobId(null);
+
+      // 刷新历史记录和用户积分
+      queryClient.invalidateQueries({ queryKey: ['history'] });
+      await refreshUser();
+
       toast({
         title: "生成完成！",
         description: "您的宠物艺术头像已生成",
@@ -87,6 +94,13 @@ export function GeneratorPage() {
   const handleRegenerate = () => {
     setCompletedJob(null);
     // 保留当前的图片和风格，用户可以直接再次点击生成
+  };
+
+  // 从历史记录重新生成（设置风格并滚动到顶部）
+  const handleRegenerateFromHistory = (styleId: string) => {
+    setSelectedStyle(styleId);
+    // 滚动到页面顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCloseResult = () => {
@@ -190,7 +204,7 @@ export function GeneratorPage() {
       {/* 生成历史 - 仅在用户登录时显示 */}
       {isAuthenticated && (
         <div className="mt-16 pt-16 border-t">
-          <GenerationHistory />
+          <GenerationHistory onRegenerate={handleRegenerateFromHistory} />
         </div>
       )}
 

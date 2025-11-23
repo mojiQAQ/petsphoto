@@ -113,6 +113,10 @@ async def process_generation_job(job_id: str, db: Session) -> None:
             api_key = settings.REPLICATE_API_KEY
             client_kwargs["base_url"] = settings.REPLICATE_BASE_URL
             client_kwargs["model"] = settings.REPLICATE_MODEL
+        elif provider == "openrouter":
+            api_key = settings.OPENROUTER_API_KEY
+            client_kwargs["base_url"] = settings.OPENROUTER_BASE_URL
+            client_kwargs["model"] = settings.OPENROUTER_MODEL
 
         # 创建图像生成客户端
         image_client = create_image_client(

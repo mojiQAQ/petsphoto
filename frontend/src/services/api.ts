@@ -3,6 +3,7 @@
  */
 import axios from "axios";
 import type { UploadedImage, GenerationStyle, GenerationJob } from "@/types/api";
+import { supabase } from "@/lib/supabase";
 
 // 使用相对路径，通过 Vite 代理转发到后端
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -14,17 +15,24 @@ const api = axios.create({
   },
 });
 
-// 请求拦截器：自动添加 Authorization header
+// 请求拦截器：自动添加 Authorization header（使用 Supabase session）
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("petsphoto_access_token");
-    console.log("🔐 API Interceptor - Token:", token ? "存在" : "不存在");
-    console.log("🔐 API Interceptor - URL:", config.url);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log("✅ Authorization header 已添加");
-    } else {
-      console.log("❌ 没有找到 token");
+  async (config) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      console.log("🔐 API Interceptor - Token:", token ? "存在" : "不存在");
+      console.log("🔐 API Interceptor - URL:", config.url);
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log("✅ Authorization header 已添加");
+      } else {
+        console.log("❌ 没有找到 Supabase session token");
+      }
+    } catch (error) {
+      console.error("❌ 获取 Supabase session 失败:", error);
     }
     return config;
   },

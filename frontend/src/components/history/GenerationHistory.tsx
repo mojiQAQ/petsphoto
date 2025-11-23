@@ -2,26 +2,65 @@
  * 生成历史组件
  */
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getUserHistory } from '@/services/history';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { Download, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import type { HistoryItem } from '@/types/history';
 
-export function GenerationHistory() {
+interface GenerationHistoryProps {
+  onRegenerate?: (styleId: string) => void;
+}
+
+export function GenerationHistory({ onRegenerate }: GenerationHistoryProps) {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['history'],
     queryFn: () => getUserHistory(20, 0),
   });
+
+  // 下载图片
+  const handleDownload = async () => {
+    if (!selectedItem?.result_image_url) return;
+
+    try {
+      const imageUrl = `${apiBaseUrl}${selectedItem.result_image_url}`;
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `petsphoto_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('下载失败:', error);
+    }
+  };
+
+  // 重新生成
+  const handleRegenerate = () => {
+    if (selectedItem && onRegenerate) {
+      onRegenerate(selectedItem.style_id);
+      setSelectedItem(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -79,7 +118,7 @@ export function GenerationHistory() {
             className="p-0 overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => {
               if (item.result_image_url && item.status === 'completed') {
-                setSelectedImage(`${apiBaseUrl}${item.result_image_url}`);
+                setSelectedItem(item);
               }
             }}
           >
@@ -122,15 +161,32 @@ export function GenerationHistory() {
       </div>
 
       {/* 图片预览对话框 */}
-      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <DialogContent className="max-w-4xl">
-          {selectedImage && (
-            <img
-              src={selectedImage}
-              alt="历史记录预览"
-              className="w-full h-auto rounded-lg"
-            />
+      <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>历史记录</DialogTitle>
+          </DialogHeader>
+          {selectedItem?.result_image_url && (
+            <div className="flex justify-center">
+              <img
+                src={`${apiBaseUrl}${selectedItem.result_image_url}`}
+                alt="历史记录预览"
+                className="max-w-full h-auto rounded-lg"
+              />
+            </div>
           )}
+          <DialogFooter className="gap-2">
+            {onRegenerate && (
+              <Button variant="outline" onClick={handleRegenerate}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                重新生成
+              </Button>
+            )}
+            <Button onClick={handleDownload}>
+              <Download className="h-4 w-4 mr-2" />
+              下载图片
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

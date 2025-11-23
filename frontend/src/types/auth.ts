@@ -3,14 +3,17 @@
  */
 
 export interface User {
-  id: string;
+  id: number;
   email: string;
-  full_name: string | null;
+  username?: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
   credits: number;
-  is_active: boolean;
-  is_verified: boolean;
+  is_active?: boolean;
+  is_verified?: boolean;
   created_at: string;
-  last_login_at: string | null;
+  last_login_at?: string | null;
+  supabase_user_id?: string;
 }
 
 export interface AuthTokens {
@@ -27,6 +30,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
+  username?: string;
   full_name?: string;
 }
 

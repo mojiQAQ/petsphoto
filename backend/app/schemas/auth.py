@@ -24,16 +24,27 @@ class GoogleOAuthRequest(BaseModel):
     id_token: str = Field(..., description="Google ID token")
 
 
+class SyncUserRequest(BaseModel):
+    """同步 Supabase 用户请求"""
+    supabase_user_id: str
+    email: EmailStr
+    username: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     """用户信息响应"""
-    id: str
+    id: int
     email: str
+    username: Optional[str] = None
     full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
     credits: int
     is_active: bool
     is_verified: bool
     created_at: datetime
     last_login_at: Optional[datetime] = None
+    supabase_user_id: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -13,10 +13,12 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)  # OAuth 用户可能没有密码
     full_name = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)
 
     # 积分系统
     credits = Column(Integer, default=0)
@@ -24,7 +26,8 @@ class User(Base):
     # 认证相关
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
-    authentik_user_id = Column(String, nullable=True, unique=True)  # Authentik 用户 ID
+    supabase_user_id = Column(String, nullable=True, unique=True, index=True)  # Supabase 用户 ID
+    authentik_user_id = Column(String, nullable=True, unique=True)  # Authentik 用户 ID (deprecated)
 
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())

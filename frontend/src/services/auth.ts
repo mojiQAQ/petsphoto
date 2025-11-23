@@ -2,10 +2,12 @@
  * 认证服务 API
  */
 import axios from 'axios';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type {
   LoginRequest,
   RegisterRequest,
-  TokenResponse
+  TokenResponse,
+  User
 } from '@/types/auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -64,5 +66,26 @@ export async function getCurrentUser(accessToken: string) {
       'Authorization': `Bearer ${accessToken}`,
     },
   });
+  return response.data;
+}
+
+/**
+ * 同步 Supabase 用户到后端
+ */
+export async function syncUser(supabaseUser: SupabaseUser, accessToken: string): Promise<User> {
+  const response = await authApi.post<User>(
+    '/api/v1/auth/sync-user',
+    {
+      supabase_user_id: supabaseUser.id,
+      email: supabaseUser.email,
+      username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0],
+      avatar_url: supabaseUser.user_metadata?.avatar_url || null,
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    }
+  );
   return response.data;
 }

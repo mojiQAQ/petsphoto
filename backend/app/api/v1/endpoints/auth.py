@@ -11,7 +11,8 @@ from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
     RefreshTokenRequest,
-    UserResponse
+    UserResponse,
+    SyncUserRequest
 )
 from app.services.auth_service import (
     register_user,
@@ -168,3 +169,67 @@ async def get_current_user_info(
     logger.info(f"获取用户信息 - ID: {current_user.id}")
 
     return UserResponse.from_orm(current_user)
+
+
+@router.post("/sync-user", response_model=UserResponse)
+async def sync_user(
+    request: SyncUserRequest,
+    db: Session = Depends(get_db)
+) -> UserResponse:
+    """
+    同步 Supabase 用户到本地数据库
+
+    - 如果用户不存在则创建
+    - 如果用户已存在则更新信息
+    - 需要客户端传递 Supabase JWT 进行验证
+    """
+    logger.info(f"同步用户请求 - Supabase ID: {request.supabase_user_id}, 邮箱: {request.email}")
+
+    # 先通过 supabase_user_id 查询
+    user = db.query(User).filter(User.supabase_user_id == request.supabase_user_id).first()
+
+    if user:
+        # 用户已存在（通过 supabase_user_id 找到）
+        logger.info(f"找到现有用户（通过 Supabase ID） - 用户 ID: {user.id}")
+        user.email = request.email
+        if request.username:
+            user.username = request.username
+        if request.avatar_url:
+            user.avatar_url = request.avatar_url
+        db.commit()
+        db.refresh(user)
+        logger.info(f"✓ 用户信息已更新 - ID: {user.id}")
+    else:
+        # 通过 supabase_user_id 未找到，尝试通过 email 查找
+        user = db.query(User).filter(User.email == request.email).first()
+
+        if user:
+            # 用户存在但 supabase_user_id 不同或为空，更新 supabase_user_id
+            logger.info(f"找到现有用户（通过 Email） - 用户 ID: {user.id}, 旧 Supabase ID: {user.supabase_user_id}, 新 Supabase ID: {request.supabase_user_id}")
+            user.supabase_user_id = request.supabase_user_id
+            user.email = request.email
+            if request.username:
+                user.username = request.username
+            if request.avatar_url:
+                user.avatar_url = request.avatar_url
+            db.commit()
+            db.refresh(user)
+            logger.info(f"✓ 用户 Supabase ID 已更新 - ID: {user.id}")
+        else:
+            # 完全新用户，创建
+            logger.info(f"创建新用户 - Supabase ID: {request.supabase_user_id}")
+            user = User(
+                email=request.email,
+                username=request.username or request.email.split('@')[0],
+                avatar_url=request.avatar_url,
+                supabase_user_id=request.supabase_user_id,
+                credits=10,  # 新用户赠送 10 积分
+                is_active=True,
+                is_verified=True  # Supabase 用户默认已验证
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"✓ 新用户创建成功 - ID: {user.id}")
+
+    return UserResponse.from_orm(user)

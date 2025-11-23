@@ -31,11 +31,15 @@ class Settings(BaseSettings):
         if not self.JWT_SECRET_KEY:
             self.JWT_SECRET_KEY = self.SECRET_KEY
 
-    # Authentik
-    AUTHENTIK_DOMAIN: str
-    AUTHENTIK_CLIENT_ID: str
-    AUTHENTIK_CLIENT_SECRET: str
-    AUTHENTIK_REDIRECT_URI: str
+    # Supabase
+    SUPABASE_URL: str = ""
+    SUPABASE_JWT_SECRET: str = ""  # JWT Secret from Supabase project settings
+
+    # Authentik (deprecated - keeping for backward compatibility)
+    AUTHENTIK_DOMAIN: str = ""
+    AUTHENTIK_CLIENT_ID: str = ""
+    AUTHENTIK_CLIENT_SECRET: str = ""
+    AUTHENTIK_REDIRECT_URI: str = ""
 
     # Image Generation API
     # 支持的提供商: mock, google_ai, stability_ai, replicate
@@ -58,6 +62,11 @@ class Settings(BaseSettings):
     REPLICATE_API_KEY: str = ""
     REPLICATE_BASE_URL: str = "https://api.replicate.com/v1"
     REPLICATE_MODEL: str = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
+
+    # OpenRouter
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-exp:free"  # 支持图像生成的模型
 
     # 保留旧的 Veo3 配置（向后兼容）
     VEO3_API_KEY: str = ""

@@ -7,6 +7,7 @@ import { HomePage } from "@/pages/HomePage"
 import { GeneratorPage } from "@/pages/GeneratorPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { RegisterPage } from "@/pages/RegisterPage"
+import { AuthCallbackPage } from "@/pages/AuthCallbackPage"
 import { AuthProvider } from "@/contexts/AuthContext"
 
 // 创建 React Query 客户端
@@ -31,6 +32,7 @@ function App() {
                 <Route path="/generator" element={<GeneratorPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
               </Routes>
             </Layout>
             <Toaster />

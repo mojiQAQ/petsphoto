@@ -22,7 +22,7 @@ except ImportError:
     GOOGLE_AUTH_AVAILABLE = False
     logger.warning("google-auth 未安装，Google Vertex AI 认证功能不可用")
 
-ImageProvider = Literal["mock", "google_ai", "stability_ai", "replicate"]
+ImageProvider = Literal["mock", "google_ai", "stability_ai", "replicate", "openrouter"]
 
 
 class ImageGenerationClient(ABC):
@@ -534,6 +534,188 @@ class ReplicateClient(ImageGenerationClient):
             raise Exception(f"Replicate 错误: {e.response.text}")
 
 
+class OpenRouterClient(ImageGenerationClient):
+    """
+    OpenRouter 客户端
+
+    通过 OpenRouter API 访问 Gemini 等模型
+    文档: https://openrouter.ai/docs
+    获取 API Key: https://openrouter.ai/keys
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://openrouter.ai/api/v1",
+        model: str = "google/gemini-2.5-flash",
+        timeout: int = 90
+    ):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+        self.timeout = timeout
+
+    async def generate_image(
+        self,
+        prompt: str,
+        source_image_path: str,
+        **kwargs
+    ) -> Dict:
+        """
+        使用 OpenRouter API 生成图像
+
+        通过 OpenAI 兼容的 chat completions 端点调用 Gemini 模型
+        """
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://petsphoto.app",
+            "X-Title": "PetsPhoto"
+        }
+
+        # 读取并编码源图片
+        with open(source_image_path, "rb") as f:
+            image_bytes = f.read()
+            image_base64 = base64.b64encode(image_bytes).decode()
+
+        # 确定图片 MIME 类型
+        mime_type = "image/jpeg"
+        if source_image_path.lower().endswith(".png"):
+            mime_type = "image/png"
+        elif source_image_path.lower().endswith(".webp"):
+            mime_type = "image/webp"
+
+        # 构建 OpenAI 兼容的请求格式
+        # 对于 Gemini 图像生成，需要明确请求生成图像
+        generation_prompt = f"Based on this pet photo, generate a new artistic image in the following style: {prompt}. Generate the image directly."
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{image_base64}"
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": generation_prompt
+                        }
+                    ]
+                }
+            ]
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                logger.info(f"Calling OpenRouter ({self.model}) with prompt: {prompt[:100]}...")
+
+                endpoint = f"{self.base_url}/chat/completions"
+                logger.debug(f"OpenRouter endpoint: {endpoint}")
+
+                response = await client.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers
+                )
+
+                response.raise_for_status()
+                result = response.json()
+
+                logger.debug(f"OpenRouter response: {result}")
+
+                # 解析响应
+                if "choices" in result and len(result["choices"]) > 0:
+                    choice = result["choices"][0]
+                    message = choice.get("message", {})
+
+                    # 检查 images 数组（OpenRouter Gemini 特有格式）
+                    images = message.get("images", [])
+                    if images and len(images) > 0:
+                        for img in images:
+                            if isinstance(img, dict) and img.get("type") == "image_url":
+                                url = img.get("image_url", {}).get("url", "")
+                                if url:
+                                    return {
+                                        "image_url": url,
+                                        "provider": "openrouter",
+                                        "metadata": {
+                                            "model": self.model,
+                                            "prompt": prompt
+                                        }
+                                    }
+
+                    content = message.get("content")
+
+                    # content 可能是字符串或数组（多模态响应）
+                    if isinstance(content, list):
+                        # 多模态响应：遍历查找图像
+                        for part in content:
+                            if isinstance(part, dict):
+                                # 检查 inline_data 格式
+                                if "inline_data" in part:
+                                    inline_data = part["inline_data"]
+                                    mime = inline_data.get("mime_type", "image/png")
+                                    data = inline_data.get("data", "")
+                                    return {
+                                        "image_url": f"data:{mime};base64,{data}",
+                                        "provider": "openrouter",
+                                        "metadata": {
+                                            "model": self.model,
+                                            "prompt": prompt
+                                        }
+                                    }
+                                # 检查 image_url 格式
+                                if part.get("type") == "image_url":
+                                    url = part.get("image_url", {}).get("url", "")
+                                    if url:
+                                        return {
+                                            "image_url": url,
+                                            "provider": "openrouter",
+                                            "metadata": {
+                                                "model": self.model,
+                                                "prompt": prompt
+                                            }
+                                        }
+                        # 没有找到图像，记录内容
+                        logger.warning(f"OpenRouter multimodal response without image: {content}")
+                        raise Exception("OpenRouter 未返回图像数据")
+                    elif isinstance(content, str):
+                        # 字符串响应：检查是否是 base64 图像
+                        if content.startswith("data:image"):
+                            return {
+                                "image_url": content,
+                                "provider": "openrouter",
+                                "metadata": {
+                                    "model": self.model,
+                                    "prompt": prompt
+                                }
+                            }
+                        else:
+                            logger.warning(f"OpenRouter returned text instead of image: {content[:500]}")
+                            raise Exception("OpenRouter 未返回图像数据，请检查模型是否支持图像生成")
+
+                raise Exception("No choices returned from OpenRouter")
+
+        except httpx.TimeoutException:
+            logger.error("OpenRouter timeout")
+            raise Exception("图像生成超时，请稍后重试")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"OpenRouter error: {e.response.status_code} - {e.response.text}")
+            if e.response.status_code == 401:
+                raise Exception("OpenRouter: API Key 无效")
+            elif e.response.status_code == 402:
+                raise Exception("OpenRouter: 积分不足，请充值")
+            elif e.response.status_code == 429:
+                raise Exception("OpenRouter: 请求过于频繁，请稍后重试")
+            else:
+                raise Exception(f"OpenRouter 错误: {e.response.text}")
+
+
 def create_image_client(
     provider: ImageProvider = "mock",
     api_key: Optional[str] = None,
@@ -603,6 +785,22 @@ def create_image_client(
 
         logger.info(f"Creating ReplicateClient with model: {model}")
         return ReplicateClient(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            **kwargs
+        )
+
+    elif provider == "openrouter":
+        if not api_key:
+            raise ValueError("OpenRouter requires API key")
+
+        # 从 kwargs 获取配置参数
+        base_url = kwargs.pop("base_url", "https://openrouter.ai/api/v1")
+        model = kwargs.pop("model", "google/gemini-2.5-flash")
+
+        logger.info(f"Creating OpenRouterClient with model: {model}")
+        return OpenRouterClient(
             api_key=api_key,
             base_url=base_url,
             model=model,
