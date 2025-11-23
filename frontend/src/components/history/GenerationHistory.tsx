@@ -2,7 +2,7 @@
  * 生成历史组件
  */
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getUserHistory } from '@/services/history';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';

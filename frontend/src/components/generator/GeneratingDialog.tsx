@@ -17,7 +17,7 @@ interface GeneratingDialogProps {
 export function GeneratingDialog({ isOpen }: GeneratingDialogProps) {
   return (
     <Dialog open={isOpen}>
-      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>正在生成...</DialogTitle>
           <DialogDescription>

@@ -3,7 +3,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser, Session, AuthError } from '@supabase/supabase-js';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import type { User, LoginRequest, RegisterRequest } from '@/types/auth';
 import * as authService from '@/services/auth';
 

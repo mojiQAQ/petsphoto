@@ -31,7 +31,7 @@ export function GeneratorPage() {
   const queryClient = useQueryClient();
 
   // 轮询生成任务状态
-  const { job } = useGenerationPolling({
+  useGenerationPolling({
     jobId: currentJobId,
     onCompleted: async (job) => {
       setCompletedJob(job);

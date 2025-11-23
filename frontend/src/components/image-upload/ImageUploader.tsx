@@ -1,8 +1,8 @@
 /**
  * 图片上传组件
  */
-import { useState, useRef, ChangeEvent, DragEvent } from "react";
-import { Upload, AlertCircle } from "lucide-react";
+import { useState, useRef, type ChangeEvent, type DragEvent } from "react";
+import { Upload } from "lucide-react";
 import { uploadImage } from "@/services/api";
 import type { UploadedImage } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";

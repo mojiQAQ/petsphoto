@@ -27,7 +27,8 @@ export function useGenerationPolling({
     queryKey: ["generation-job", jobId],
     queryFn: () => getGenerationJob(jobId!),
     enabled: !!jobId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
+      const data = query.state.data;
       if (!data) return interval;
 
       // 任务完成或失败时停止轮询
